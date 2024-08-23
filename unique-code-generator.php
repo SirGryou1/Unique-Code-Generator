@@ -5,7 +5,7 @@
   Description: Génère des codes uniques pour chaque article écheté et les envoie par mail au client
   Small indication : Cette version permet d'avoir dans un widget wordpress une notification pour sur les 10 dernieres commandes de si le mail avec le code c'est bien envoyé ou non
   Author: ALTER NATIVE PROJECTS SARL
-  Version: 2.0
+  Version: 2.2
   Requires PHP: 5.2
   Tested up to: 6.6
   Author URI: https://www.alter-native-projects.com
@@ -16,13 +16,47 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Unique_Code_Generator {
 
+    private $db_version = '1.2';
     public function __construct() {
         register_activation_hook(__FILE__, array($this, 'create_table'));
+        add_action('init', array($this, 'check_db_version'));  //verification de la version de la db
         add_action('woocommerce_thankyou', array($this, 'generate_code_on_purchase'));
         add_filter('woocommerce_order_item_meta_end', array($this, 'display_code_in_order'), 10, 3);
 
         // Fonctions de notification dans l'admin
         add_action('wp_dashboard_setup', array($this,'add_dashboard_widget'));
+    }
+
+    public function check_db_version() {
+        $installed_version = get_option('unique_code_generator_db_version');
+
+        if ($installed_version !== $this->db_version) {
+            $this->create_or_update_table();
+        }
+    }
+
+    // Fonction pour créer et mettre à jour la table personnalisée
+    public function create_or_update_table() {
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'generated_codes';
+
+        $charset_collate = $wpdb->get_charset_collate();
+        
+        // Structure actuelle de la table
+        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+            id mediumint(9) NOT NULL AUTO_INCREMENT,
+            order_id bigint(20) NOT NULL,
+            product_id bigint(20) NOT NULL,
+            code varchar(255) NOT NULL,
+            email_sent tinyint(1) NOT NULL DEFAULT 0, 
+            PRIMARY KEY  (id)
+        ) $charset_collate;";
+
+        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
+        dbDelta($sql);
+
+        // Mettre à jour la version de la base de données 
+        update_option('unique_code_generator_db_version', $this->db_version);
     }
 
     // Fonction pour ajouter le widget au tableau de bord
@@ -63,30 +97,7 @@ class Unique_Code_Generator {
         } else {
             echo '<p>Aucune donnée disponible pour le moment.</p>';
         }
-    }
-
-
-
-
-    // Fonction pour créer la table personnalisée
-    public function create_table() {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'generated_codes';
-
-        $charset_collate = $wpdb->get_charset_collate();
-
-        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
-            id mediumint(9) NOT NULL AUTO_INCREMENT,
-            order_id bigint(20) NOT NULL,
-            product_id bigint(20) NOT NULL,
-            code varchar(255) NOT NULL,
-            email_sent tinyint(1) NOT NULL DEFAULT 0, /* Nouvelle colone pour suivre l'envoie des mails */
-            PRIMARY KEY  (id)
-        ) $charset_collate;";
-
-        require_once(ABSPATH . 'wp-admin/includes/upgrade.php');
-        dbDelta($sql);
-    }
+    }    
 
     // Fonction pour générer un code unique
     public function generate_unique_code() {
@@ -163,8 +174,6 @@ class Unique_Code_Generator {
             }
         }
 
-        //error_log('Codes générés : ' . print_r($codes, true));
-
         $this->send_codes_to_customer($order, $codes);
     }
 
@@ -228,43 +237,32 @@ class Unique_Code_Generator {
     $message .= '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Instagram_icon.png/32px-Instagram_icon.png" alt="Instagram" style="vertical-align: middle; width: 32px; height: 32px;">';
     $message .= '</a>';
     $message .= '</div>';
-
-    
     $message .= '<p style="font-size: 16px;">Cordialement,<br>L\'équipe de DEFINIR NOM DE LA BOUTIQUE</p>';
     $message .= '</div>';
     $message .= '</div>';
 
         // Envoyer l'email au client
-        $mail_sent = wp_mail($to, $subject, $message, $headers);
+        $sent = wp_mail($to, $subject, $message, $headers);
 
-        //Mettre à jour l'état de l'envoie demail pour chaque code dans la bdd
-        global $wpdb;
-        $table_name = $wpdb->prefix .'generated_codes';
+        if ($sent) {
+            global $wpdb;
+            $table_name = $wpdb->prefix . 'generated_codes';
 
-        foreach ($codes as $code){
             $wpdb->update(
                 $table_name,
-                array('email_sent' => $mail_sent ? 1 : 0),
-                array('code' => $code),
-                array('%d'),
-                array('%s')
+                array('email_sent' => 1),
+                array('order_id' => $order->get_id())
             );
         }
-       
-
-        if ($mail_sent) {
-            add_action('admin_notices', array($this, 'admin_notice_success'));
-        } else {
-            add_action('admin_notices', array($this, 'admin_notice_failure'));
-        }
-    }
+     }
 
     // Filtre pour afficher le code dans les détails de la commande
     public function display_code_in_order($item_id, $item, $order) {
-        $i = 0;
-        while ($unique_code = wc_get_order_item_meta($item_id, '_unique_code_' . $i, true)) {
-            echo '<p><strong>Code Unique:</strong> ' . esc_html($unique_code) . '</p>';
-            $i++;
+        for($i = 0; $i < 15; $i++){
+            $code = wc_get_order_item_meta($item_id, '_unique_code_' . $i, t:rue);
+            if ($code) {
+                echo'<p><strong>Code Unique:</strong>' . esc_html($code) .'</p>';
+            }
         }
     }
 }
