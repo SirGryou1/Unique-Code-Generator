@@ -5,7 +5,7 @@
   Description: Génère des codes uniques pour chaque article écheté et les envoie par mail au client
   Small indication : Cette version permet d'avoir dans un widget wordpress une notification pour sur les 10 dernieres commandes de si le mail avec le code c'est bien envoyé ou non
   Author: ALTER NATIVE PROJECTS SARL
-  Version: 2.2
+  Version: 2.4
   Requires PHP: 5.2
   Tested up to: 6.6
   Author URI: https://www.alter-native-projects.com
@@ -16,7 +16,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 class Unique_Code_Generator {
 
-    private $db_version = '1.2';
+    private $db_version = '1.3';
     public function __construct() {
         register_activation_hook(__FILE__, array($this, 'create_table'));
         add_action('init', array($this, 'check_db_version'));  //verification de la version de la db
@@ -43,12 +43,12 @@ class Unique_Code_Generator {
         $charset_collate = $wpdb->get_charset_collate();
         
         // Structure actuelle de la table
-        $sql = "CREATE TABLE IF NOT EXISTS $table_name (
+        $sql = "CREATE TABLE $table_name (
             id mediumint(9) NOT NULL AUTO_INCREMENT,
             order_id bigint(20) NOT NULL,
             product_id bigint(20) NOT NULL,
             code varchar(255) NOT NULL,
-            email_sent tinyint(1) NOT NULL DEFAULT 0, 
+            email_sent tinyint(1) NOT NULL DEFAULT 0,
             PRIMARY KEY  (id)
         ) $charset_collate;";
 
