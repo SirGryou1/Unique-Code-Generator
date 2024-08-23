@@ -4,6 +4,9 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Empêche un accès direct
 }
 
+//Inclure le fichier contenant la classe unique_code_generator_email.php
+require_once plugin_dir_path(__FILE__) . 'class-unique-code-generator-email.php';
+
 class Unique_Code_Generator {
 
     public function __construct() {
@@ -59,6 +62,11 @@ class Unique_Code_Generator {
         }
 
         $order = wc_get_order($order_id);
+        // Vérifiez si les codes ont déjà été générés pour cette commande
+        if ($order->get_meta('_codes_generated') == 'yes') {
+            return; // Arrêtez l'exécution si les codes ont déjà été générés
+        }
+
         $codes = [];
 
         foreach ($order->get_items() as $item_id => $item) {
@@ -81,6 +89,9 @@ class Unique_Code_Generator {
             }
         }
 
+        $order->update_meta_data('_codes_generated', 'yes');
+        $order->save();
+    
         Unique_Code_Generator_Email::send_codes_to_customer($order, $codes);
     }
 
