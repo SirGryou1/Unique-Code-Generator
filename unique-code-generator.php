@@ -2,9 +2,9 @@
 /*
   Plugin Name: Unique Code Generator
   Plugin URI: T SOON
-  Description: Génère des codes uniques pour chaque article acheté et les envoie par email au client. Affiche une notification dans un widget WordPress sur les dernières commandes et l'état des emails.
+  Description: Génère des codes uniques pour chaque article acheté et les envoie par email au client. Affiche une notification dans un widget WordPress sur les dernières commandes et l'état des emails avec un graphique de statistiques.
   Author: ALTER NATIVE PROJECTS SARL
-  Version: 2.8
+  Version: 3.0.1
   Requires PHP: 5.2
   Tested up to: 6.6
   Author URI: https://www.alter-native-projects.com
@@ -21,7 +21,7 @@ class Unique_Code_Generator {
         register_activation_hook(__FILE__, array($this, 'create_table'));
         add_action('init', array($this, 'check_db_version'));  // Vérification de la version de la DB
         add_action('woocommerce_thankyou', array($this, 'generate_code_on_purchase'));
-        add_action('wp_dashboard_setup', array($this, 'add_dashboard_widgets'));
+        add_action('wp_dashboard_setup', array($this, 'add_dashboard_widget'));
         add_action('admin_menu', array($this, 'add_settings_page'));
         add_action('admin_init', array($this, 'register_settings'));
         add_filter('woocommerce_order_item_meta_end', array($this, 'display_code_in_order'), 10, 3);
@@ -59,22 +59,16 @@ class Unique_Code_Generator {
         update_option('unique_code_generator_db_version', $this->db_version);
     }
 
-    // Ajouter les widgets au tableau de bord
-    public function add_dashboard_widgets() {
+    // Ajouter le widget de tableau de bord
+    public function add_dashboard_widget() {
         wp_add_dashboard_widget(
-            'unique_code_email_tracking_widget',
-            'Suivi des Emails Contenant les Codes Uniques',
+            'unique_code_dashboard_widget',
+            'Unique Code Generator',
             array($this, 'display_dashboard_widget')
-        );
-
-        wp_add_dashboard_widget(
-            'unique_code_statistics_widget',
-            'Statistiques des Codes Uniques',
-            array($this, 'display_code_statistics_widget')
         );
     }
 
-    // Fonction pour afficher le contenu du widget de suivi des emails
+    // Fonction pour afficher le contenu du widget de suivi des emails et des statistiques
     public function display_dashboard_widget() {
         global $wpdb;
         $table_name = $wpdb->prefix . 'generated_codes';
@@ -82,36 +76,58 @@ class Unique_Code_Generator {
         // Récupérer la limite des paramètres, avec 10 comme valeur par défaut
         $limit = get_option('code_limit', 10);
 
-        // Récupérer les dernières commandes avec la limite définie
+        // Récupérer le nombre total de codes générés
+        $total_codes = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
+
+        // Récupérer les statistiques par jour pour les 30 derniers jours
+        $date_format = '%Y-%m-%d';
         $results = $wpdb->get_results($wpdb->prepare("
-            SELECT g.order_id, g.code, o.post_date, o.post_status, g.email_sent AS email_status
-            FROM $table_name AS g
-            JOIN {$wpdb->prefix}posts AS o ON g.order_id = o.ID
-            ORDER BY o.post_date DESC
-            LIMIT %d
-        ", $limit));
+            SELECT DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP(post_date)), %s) as day, COUNT(*) as count
+            FROM $table_name
+            JOIN {$wpdb->prefix}posts AS o ON $table_name.order_id = o.ID
+            WHERE o.post_date >= NOW() - INTERVAL 30 DAY
+            GROUP BY day
+            ORDER BY day
+        ", $date_format));
+
+        // Préparer les données pour le graphique
+        $dates = array();
+        $counts = array();
+        foreach ($results as $row) {
+            $dates[] = $row->day;
+            $counts[] = intval($row->count);
+        }
+
+        // Message de bienvenue avec la date d'aujourd'hui
+        $current_user = wp_get_current_user();
+        $username = $current_user->user_firstname ? $current_user->user_firstname : $current_user->user_login;
+        $current_date = date_i18n('d F Y'); // Date au format jour mois année
+
+        // Afficher le nom du plugin et les statistiques
+        echo '<h2>Unique Code Generator</h2>';
+        echo '<p>Bonjour ' . esc_html($username) . ', voici les informations d\'aujourd\'hui ' . esc_html($current_date) . '.</p>';
+        echo '<p><strong>Nombre total de codes générés:</strong> ' . esc_html($total_codes) . '</p>';
+
+        // Graphique des codes générés par jour
+        echo '<div style="margin-bottom: 20px;">';
+        echo '<canvas id="codesChart" width="400" height="200"></canvas>';
+        echo '</div>';
 
         // Afficher les résultats dans un tableau
         if ($results) {
             echo '<table style="width: 100%; border-collapse: collapse;">';
             echo '<thead>';
             echo '<tr>';
-            echo '<th style="border: 1px solid #ddd; padding: 8px;">Commande #</th>';
             echo '<th style="border: 1px solid #ddd; padding: 8px;">Date</th>';
-            echo '<th style="border: 1px solid #ddd; padding: 8px;">Statut</th>';
-            echo '<th style="border: 1px solid #ddd; padding: 8px;">Code Unique</th>';
-            echo '<th style="border: 1px solid #ddd; padding: 8px;">Email Envoyé ?</th>';
+            echo '<th style="border: 1px solid #ddd; padding: 8px;">Nombre de Codes Générés</th>';
             echo '</tr>';
             echo '</thead>';
             echo '<tbody>';
         
-            foreach ($results as $order) {
+            foreach ($results as $row) {
                 echo '<tr>';
-                echo '<td style="border: 1px solid #ddd; padding: 8px;">' . esc_html($order->order_id) . '</td>';
-                echo '<td style="border: 1px solid #ddd; padding: 8px;">' . esc_html($order->post_date) . '</td>';
-                echo '<td style="border: 1px solid #ddd; padding: 8px;">' . esc_html($order->post_status) . '</td>';
-                echo '<td style="border: 1px solid #ddd; padding: 8px;">' . esc_html($order->code) . '</td>';
-                echo '<td style="border: 1px solid #ddd; padding: 8px;">' . (esc_html($order->email_status) ? 'Oui' : 'Non') . '</td>';
+                echo '<td style="border: 1px solid #ddd; padding: 8px;">' . esc_html($row->day) . '</td>';
+                echo '<td style="border: 1px solid #ddd; padding: 8px;">' . esc_html(intval($row->count)) . '</td>';
                 echo '</tr>';
             }
         
@@ -120,18 +136,46 @@ class Unique_Code_Generator {
         } else {
             echo '<p>Aucune donnée disponible pour le moment.</p>';
         }
-    }   
 
-    // Fonction pour afficher les statistiques des codes uniques
-    public function display_code_statistics_widget() {
-        global $wpdb;
-        $table_name = $wpdb->prefix . 'generated_codes';
-
-        // Récupérer le nombre total de codes générés
-        $total_codes = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
-
-        // Afficher les résultats dans le widget
-        echo '<p><strong>Nombre total de codes générés:</strong> ' . esc_html($total_codes) . '</p>';
+        // Inclure Chart.js depuis un CDN
+        echo '<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>';
+        echo '<script>
+            document.addEventListener("DOMContentLoaded", function() {
+                var ctx = document.getElementById("codesChart").getContext("2d");
+                var codesChart = new Chart(ctx, {
+                    type: "line",
+                    data: {
+                        labels: ' . json_encode($dates) . ',
+                        datasets: [{
+                            label: "Nombre de Codes par Jour",
+                            data: ' . json_encode($counts) . ',
+                            borderColor: "rgba(75, 192, 192, 1)",
+                            backgroundColor: "rgba(75, 192, 192, 0.2)",
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: "Date"
+                                }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: "Nombre de Codes"
+                                }
+                            }
+                        }
+                    }
+                });
+            });
+        </script>';
     }
 
     // Ajouter la page de réglages
@@ -226,120 +270,29 @@ class Unique_Code_Generator {
         }
 
         $order = wc_get_order($order_id);
-        $codes = [];
+        $items = $order->get_items();
 
-        foreach ($order->get_items() as $item_id => $item) {
+        foreach ($items as $item) {
             $product_id = $item->get_product_id();
-            $quantity = $item->get_quantity();
-            $additional_chances = 0;
-
-            // Vérifier si le produit a l'étiquette "10 chances de plus"
-            if (has_term('10 chances de plus', 'product_tag', $product_id)) {
-                $additional_chances = 10;
-            }
-
-            for ($i = 0; $i < $quantity + $additional_chances; $i++) {
-                $unique_code = $this->generate_unique_code();
-
-                if (!empty($unique_code)) {
-                    wc_add_order_item_meta($item_id, '_unique_code_' . $i, $unique_code);
-                    $this->insert_code_in_custom_table($order_id, $product_id, $unique_code);
-                    $codes[] = $unique_code;
-                }
-            }
-        }
-
-        $this->send_codes_to_customer($order, $codes);
-    }
-
-    // Fonction pour envoyer les codes au client par email
-    public function send_codes_to_customer($order, $codes) {
-        $to = $order->get_billing_email(); // Adresse email du client
-        $subject = 'Votre (vos) code(s) unique(s) pour la commande #' . $order->get_order_number(); // Objet de l'email
-        $headers = array('Content-Type: text/html; charset=UTF-8'); // Définir les en-têtes de l'email pour l'envoi en HTML 
-
-        // Url du site à partager 
-        $site_url = get_site_url();
-
-        // Url de la page Instagram
-        $instagram_profile_url = 'https://www.instagram.com/votreprofil'; // Le profil de la page doit être ajouté
-
-        // Url du logo
-        $site_logo_url = 'https://www.test.alter-native-projects.com/wp-content/uploads/2024/08/images-2.png';
-
-        // Nom du site
-        $site_name = get_bloginfo('name'); // Nom du site Wordpress
-
-        // Contenu de l'email avec styles personnalisés
-        $message = '<div style="font-family: Arial, sans-serif; line-height: 1.5;">';
-
-        // Boîte avec ombre externe
-        $message .= '<div style="max-width: 600px; margin: 0 auto; padding: 20px; border-radius: 10px; box-shadow: 0px 4px 15px rgba(0, 0, 0, 0.1); background-color: #ffffff;">';
-
-        // <h2> dans une boîte avec couleur violette, prenant toute la largeur
-        $message .= '<div style="background-color: #6a0dad; color: #ffffff; padding: 15px; border-radius: 8px; text-align: center; width: 100%; height: 100%;">';
-        $message .= '<h2 style="margin: 0;">Merci, ' . esc_html($order->get_billing_first_name()) . ', pour votre achat chez ' . esc_html($site_name) . '!</h2>';
-        $message .= '</div>';
-
-        $message .= '<p style="font-size: 16px;">Nous vous remercions pour votre commande. Voici votre (vos) code(s) unique(s) pour le(s) article(s) que vous avez acheté(s) :</p>';
-        $message .= '<ul style="font-size: 16px;">';
-
-        foreach ($codes as $code) {
-            $message .= '<li><strong style="color: #0056b3;">' . esc_html($code) . '</strong></li>';
-        }
-        $message .= '</ul>';
-        $message .= '<p style="font-size: 16px;">Nous espérons que vous apprécierez vos produits. Si vous avez des questions, n\'hésitez pas à <a href="mailto:support@votre-site.com">nous contacter</a>.</p>';
-
-        // Logo du site avec lien vers le site
-        $message .= '<p><a href="' . esc_url($site_url) . '" target="_blank">';
-        $message .= '<img src="' . esc_url($site_logo_url) . '" alt="' . esc_html($site_name) . '" style="display: block; margin: 0 auto; width: 150px; height: auto;">';
-        $message .= '</a></p>';
-
-        // Boutons de partage
-        $message .= '<p style="font-size: 16px;">Partagez le à vos contacts :</p>';
-        $message .= '<div>';
-        $message .= '<a href="https://www.facebook.com/sharer/sharer.php?u=' . urlencode($site_url) . '" target="_blank" style="text-decoration: none; margin-right: 10px;">';
-        $message .= '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/51/Facebook_f_logo_%282019%29.svg/32px-Facebook_f_logo_%282019%29.svg.png" alt="Facebook" style="vertical-align: middle; width: 32px; height: 32px;">';
-        $message .= '</a>';
-        $message .= '<a href="https://x.com/intent/tweet?url=' . urlencode($site_url) . '&text=Vous%20aussi%20gagné%20une%20voiture!" target="_blank" style="text-decoration: none; margin-right: 10px;">';
-        $message .= '<img src="https://upload.wikimedia.org/wikipedia/commons/c/ce/X_logo_2023.svg" alt="X" style="vertical-align: middle; width: 32px; height: 32px;">';
-        $message .= '</a>';
-        $message .= '<a href="https://www.linkedin.com/shareArticle?mini=true&url=' . urlencode($site_url) . '" target="_blank" style="text-decoration: none; margin-right: 10px;">';
-        $message .= '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/c/c9/Linkedin.svg/32px-Linkedin.svg.png" alt="LinkedIn" style="vertical-align: middle; width: 32px; height: 32px;">';
-        $message .= '</a>';
-        $message .= '<a href="' . esc_url($instagram_profile_url) . '" target="_blank" style="text-decoration: none;">';
-        $message .= '<img src="https://upload.wikimedia.org/wikipedia/commons/thumb/a/a5/Instagram_icon.png/32px-Instagram_icon.png" alt="Instagram" style="vertical-align: middle; width: 32px; height: 32px;">';
-        $message .= '</a>';
-        $message .= '</div>';
-        $message .= '<p style="font-size: 16px;">Cordialement,<br>L\'équipe de ' . esc_html($site_name) . '</p>';
-        $message .= '</div>';
-        $message .= '</div>';
-
-        // Envoyer l'email au client
-        $sent = wp_mail($to, $subject, $message, $headers);
-
-        if ($sent) {
-            global $wpdb;
-            $table_name = $wpdb->prefix . 'generated_codes';
-
-            $wpdb->update(
-                $table_name,
-                array('email_sent' => 1),
-                array('order_id' => $order->get_id())
-            );
+            $unique_code = $this->generate_unique_code();
+            $this->insert_code_in_custom_table($order_id, $product_id, $unique_code);
         }
     }
 
-    // Filtre pour afficher le code dans les détails de la commande
+    // Fonction pour afficher le code unique dans les détails de la commande
     public function display_code_in_order($item_id, $item, $order) {
-        for ($i = 0; $i < 15; $i++) {
-            $code = wc_get_order_item_meta($item_id, '_unique_code_' . $i, true);
-            if ($code) {
-                echo '<p><strong>Code Unique:</strong> ' . esc_html($code) . '</p>';
-            }
+        global $wpdb;
+        $table_name = $wpdb->prefix . 'generated_codes';
+        $code = $wpdb->get_var($wpdb->prepare("
+            SELECT code
+            FROM $table_name
+            WHERE order_id = %d AND product_id = %d
+        ", $order->get_id(), $item->get_product_id()));
+
+        if ($code) {
+            echo '<p><strong>Code Unique:</strong> ' . esc_html($code) . '</p>';
         }
     }
 }
 
-// Initialiser le plugin
 new Unique_Code_Generator();
