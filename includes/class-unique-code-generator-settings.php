@@ -37,7 +37,7 @@ class Unique_Code_Generator_Settings {
                 ?>
                 <table class="form-table">
                     <tr valign="top">
-                        <th scope="row">Nombre de jour à afficher (10 par défault)</th>
+                        <th scope="row">Nombre de jour à afficher (30 par défault)</th>
                         <td>
                             <input type="number" name="code_limit" value="<?php echo esc_attr(get_option('code_limit', 10)); ?>" />
                         </td>

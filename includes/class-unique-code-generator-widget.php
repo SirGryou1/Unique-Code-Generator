@@ -22,22 +22,22 @@ class Unique_Code_Generator_Widget {
         global $wpdb;
         $table_name = $wpdb->prefix . 'generated_codes';
 
-        // Récupérer la limite des paramètres, avec 10 comme valeur par défaut
-        $limit = get_option('code_limit', 10);
+        // Récupérer la limite des paramètres, avec 30 comme valeur par défaut
+        $days_limit = get_option('code_limit', 30);
 
         // Récupérer le nombre total de codes générés
         $total_codes = $wpdb->get_var("SELECT COUNT(*) FROM $table_name");
 
-        // Récupérer les statistiques par jour pour les 30 derniers jours
+        // Récupérer les statistiques par jour pour les X derniers jours
         $date_format = '%Y-%m-%d';
         $results = $wpdb->get_results($wpdb->prepare("
             SELECT DATE_FORMAT(FROM_UNIXTIME(UNIX_TIMESTAMP(post_date)), %s) as day, COUNT(*) as count
             FROM $table_name
             JOIN {$wpdb->prefix}posts AS o ON $table_name.order_id = o.ID
-            WHERE o.post_date >= NOW() - INTERVAL 30 DAY
+            WHERE o.post_date >= NOW() - INTERVAL %d DAY
             GROUP BY day
             ORDER BY day
-        ", $date_format));
+        ", $date_format, $days_limit));
 
         // Préparer les données pour le graphique
         $dates = array();

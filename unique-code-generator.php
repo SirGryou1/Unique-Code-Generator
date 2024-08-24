@@ -4,7 +4,7 @@
   Plugin URI: T SOON
   Description: Génère des codes uniques pour chaque article acheté et les envoie par email au client. Affiche une notification dans un widget WordPress sur les dernières commandes et l'état des emails avec un graphique de statistiques.
   Author: ALTER NATIVE PROJECTS SARL
-  Version: 3.1.3
+  Version: 3.1.5
   Requires PHP: 5.2
   Tested up to: 6.6
   Author URI: https://www.alter-native-projects.com
