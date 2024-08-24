@@ -24,6 +24,8 @@ class Unique_Code_Generator_Settings {
     public function register_settings() {
         register_setting('unique_code_generator_settings', 'code_limit'); //definir le nombre de jour à afficher 
         register_setting('unique_code_generator_settings','additional_chances'); //définir le nombre de code generer 
+        register_setting('unique_code_generator_settings', 'email_subject'); // objet de l'email
+        register_setting('unique_code_generator_settings', 'email_content'); // contenu de l'email
     }
 
     public function settings_page_content() {
@@ -46,6 +48,19 @@ class Unique_Code_Generator_Settings {
                         <th scope="row">Chances supplémentaires (10 ne peut pas être en dessous de 2 par default)</th>
                         <td>
                             <input type="number" name="additional_chances" value="<?php echo esc_attr(get_option('additional_chances', 10)); ?>" />
+                        </td>
+                    </tr>
+                    <tr valign="top">
+                        <th scope="row">Objet de l'email</th>
+                        <td>
+                            <input type="text" name="email_subject" value="<?php echo esc_attr(get_option('email_subject', 'Votre (vos) code(s) unique(s)')); ?>" />
+                        </td>
+                    </tr>
+                    <tr valign="top">
+                        <th scope="row">Contenu de l'email</th>
+                        <td>
+                            <textarea name="email_content" rows="10" cols="50"><?php echo esc_textarea(get_option('email_content', '')); ?></textarea>
+                            <p class="description">Vous pouvez utiliser des balises comme {codes} pour remplacer la liste des codes générés.</p>
                         </td>
                     </tr>
                 </table>
