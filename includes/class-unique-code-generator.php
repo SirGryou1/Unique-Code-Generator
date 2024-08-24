@@ -73,7 +73,7 @@ class Unique_Code_Generator {
         foreach ($order->get_items() as $item_id => $item) {
             $product_id = $item->get_product_id();
             $quantity = $item->get_quantity();
-            $additional_chances = 0;
+            $extra_chances = 0;
 
             if (has_term('10 chances de plus', 'product_tag', $product_id)) {
                 $extra_chances = $additional_chances;
