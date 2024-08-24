@@ -19,8 +19,13 @@ class Unique_Code_Generator_Email {
 
         // Url du logo
         $site_logo_url = 'https://www.test.alter-native-projects.com/wp-content/uploads/2024/08/images-2.png';
+
         // Nom du site
         $site_name = get_bloginfo('name'); // Nom du site Wordpress
+
+        //Nombre total de codes générés 
+        $number_of_codes = count($codes);
+
         // Contenu de l'email avec styles personnalisés
         $message = '<div style="font-family: Arial, sans-serif; line-height: 1.5;">';
         // Boîte avec ombre externe
@@ -30,7 +35,7 @@ class Unique_Code_Generator_Email {
         $message .= '<h2 style="margin: 0;">Merci, ' . esc_html($order->get_billing_first_name()) . ', pour votre achat chez ' . esc_html($site_name) . '!</h2>';
         $message .= '</div>';
 
-        $message .= '<p style="font-size: 16px;">Nous vous remercions pour votre commande. Voici votre (vos) code(s) unique(s) pour le(s) article(s) que vous avez acheté(s) :</p>';
+        $message .= '<p style="font-size: 16px;">Nous vous remercions pour votre commande. Vous avez reçu <strong>' . esc_html($number_of_codes) . ' code(s) unique(s)</strong> pour le(s) article(s) que vous avez acheté(s) :</p>';
         $message .= '<ul style="font-size: 16px;">';
 
         foreach ($codes as $code) {

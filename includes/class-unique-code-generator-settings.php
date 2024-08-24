@@ -23,7 +23,7 @@ class Unique_Code_Generator_Settings {
 
     public function register_settings() {
         register_setting('unique_code_generator_settings', 'code_limit'); //definir le nombre de jour à afficher 
-        register_setting('unique_code_genrator_settings','additional_chances'); //définir le nombre de code generer 
+        register_setting('unique_code_generator_settings','additional_chances'); //définir le nombre de code generer 
     }
 
     public function settings_page_content() {
@@ -43,7 +43,7 @@ class Unique_Code_Generator_Settings {
                         </td>
                     </tr>
                     <tr valign="top">
-                        <th scope="row">Chances supplémentaires (10 par default)</th>
+                        <th scope="row">Chances supplémentaires (10 ne peut pas être en dessous de 2 par default)</th>
                         <td>
                             <input type="number" name="additional_chances" value="<?php echo esc_attr(get_option('additional_chances', 10)); ?>" />
                         </td>

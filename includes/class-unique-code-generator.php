@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Empêche un accès direct
 }
 
-//Inclure le fichier contenant la classe unique_code_generator_email.php
+// Inclure le fichier contenant la classe unique_code_generator_email.php
 require_once plugin_dir_path(__FILE__) . 'class-unique-code-generator-email.php';
 
 class Unique_Code_Generator {
@@ -66,20 +66,23 @@ class Unique_Code_Generator {
         if ($order->get_meta('_codes_generated') == 'yes') {
             return; // Arrêtez l'exécution si les codes ont déjà été générés
         }
-        $additional_chances = get_option('additional_chances',10);
+        
+        $additional_chances = get_option('additional_chances', 10);
 
         $codes = [];
 
         foreach ($order->get_items() as $item_id => $item) {
             $product_id = $item->get_product_id();
             $quantity = $item->get_quantity();
-            $additional_chances = 0;
+            $extra_chances = 0;
 
+            // Vérifiez si le produit a le tag '10 chances de plus'
             if (has_term('10 chances de plus', 'product_tag', $product_id)) {
                 $extra_chances = $additional_chances;
             }
 
-            for ($i = 0; $i < $quantity + $additional_chances; $i++) {
+            // Génération des codes avec la quantité + chances supplémentaires
+            for ($i = 0; $i < $quantity + $extra_chances; $i++) {
                 $unique_code = $this->generate_unique_code();
 
                 if (!empty($unique_code)) {
