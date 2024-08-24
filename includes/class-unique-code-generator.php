@@ -66,6 +66,7 @@ class Unique_Code_Generator {
         if ($order->get_meta('_codes_generated') == 'yes') {
             return; // Arrêtez l'exécution si les codes ont déjà été générés
         }
+        $additional_chances = get_option('additional_chances',10);
 
         $codes = [];
 
@@ -75,7 +76,7 @@ class Unique_Code_Generator {
             $additional_chances = 0;
 
             if (has_term('10 chances de plus', 'product_tag', $product_id)) {
-                $additional_chances = 10;
+                $extra_chances = $additional_chances;
             }
 
             for ($i = 0; $i < $quantity + $additional_chances; $i++) {
